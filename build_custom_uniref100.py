@@ -18,46 +18,47 @@
 # Author: James Matsumura
 
 import sys, os, re, gzip, time
-from Bio import SwissProt
 
 sprotFile =  str(sys.argv[1]) 
 unirefFile =  str(sys.argv[2]) # important that this is same version as map file
 mapFile =  str(sys.argv[3]) 
 
-bacteriaOnlyFile = gzip.open(sprotFile, 'rb') # large files, use compression
+sprotSetFile = gzip.open(sprotFile, 'rb') # large files, use compression
 origUnirefFile = gzip.open(unirefFile, 'rb') 
 mappingFile = gzip.open(mapFile, 'rb') 
-relevantBacteriaFile = open('./bacteria_with_evidence.txt', 'w')
+relevantEntryFile = open('./entries_with_evidence.txt', 'w')
 relevantUnirefFile = open('./uniref_with_evidence.txt', 'w')
 outFile = gzip.open('./custom_uniref100.fasta.gz', 'wb')
 
 # Only want to find those with experimental evidence backing the annotation.
 # Use: http://bioportal.bioontology.org/ontologies/ECO/?p=classes&conceptid=root
-evidenceCodes = ('ECO:0000269','ECO:0000006','ECO:0000179', \
-     	         'ECO:0000360','ECO:0005606','ECO:0000325', \
-		 	 	 'ECO:0000180','ECO:0005604','ECO:0000002', \
-		 		 'ECO:0005605','ECO:0000073','ECO:0000059', \
-		 		 'ECO:0000008','ECO:0001094','ECO:0005516', \
-		 		 'ECO:0000021','ECO:0000340','ECO:0000220', \
-		 		 'ECO:0005504','ECO:0005031')
+evidenceCodes = ('ECO:0000269')
+				 #'ECO:0000006','ECO:0000179', \
+     	         #'ECO:0000360','ECO:0005606','ECO:0000325', \
+		 	 	 #'ECO:0000180','ECO:0005604','ECO:0000002', \
+		 		 #'ECO:0005605','ECO:0000073','ECO:0000059', \
+		 		 #'ECO:0000008','ECO:0001094','ECO:0005516', \
+		 		 #'ECO:0000021','ECO:0000340','ECO:0000220', \
+		 		 #'ECO:0005504','ECO:0005031')
 
 footerFound = False
 accessionFound = False
 relevantUnirefEntry = False 
 
 regexForAccession = r"^AC\s+(.*);"
-regexForFooter = r"^\/\/"
+regexForFooter = r"^\/\/$"
 regexForUnirefAccession = r"^>UniRef100\_(\w+)\s+.*"
 regexForMappedAccession = r"UniRef100\_(\w+)"
+regexForECO = r".*ECO:0000269.*"
 uniqueIds = set()
 uniqueUnirefIds = set()
 
+print "stage 1"
 # 1)
 # The annotations here are messy. Evidence codes are often in the comments (CC)
 # or other tags like feature table (FT) or reference comments (RC). Thus, need
 # to check multiple attributes of each entry for any trace of evidence.
-print "stage 1"
-for line in bacteriaOnlyFile:
+for line in sprotSetFile:
 
 	if (footerFound == True): # reinitialize values for next record
 		accessionFound = False
@@ -68,7 +69,8 @@ for line in bacteriaOnlyFile:
 			footerFound = True
 
 		else:
-			if any(x in line for x in evidenceCodes):
+			if(re.search(regexForECO, line)):
+			#if any(x in line for x in evidenceCodes):
 				# It appears that each accession tag can have
 				# multiple accessions tied to it. These all go
 				# to the same representative in the UniProt site,
@@ -80,11 +82,11 @@ for line in bacteriaOnlyFile:
 					for x in multiAccessions: # iterate over this ~2-3 len list
 						if x not in uniqueIds:
 							uniqueIds = uniqueIds | {x}
-							relevantBacteriaFile.write(x+'\n')
+							relevantEntryFile.write(x+'\n')
 
 				elif(foundAccession not in uniqueIds): 
 					uniqueIds = uniqueIds | {foundAccession}
-					relevantBacteriaFile.write(foundAccession+'\n')
+					relevantEntryFile.write(foundAccession+'\n')
 
 	else:
 		findAccession = re.search(regexForAccession, line)
@@ -92,10 +94,11 @@ for line in bacteriaOnlyFile:
 			foundAccession = findAccession.group(1)
 			accessionFound = True
 
-time.sleep(20) # using this to do a check
+time.sleep(100)
+
+print "stage 2"
 # 2) 
 # Must map each UniProt entry to its corresponding current UniRef representative.
-print "stage 2"
 for line in mappingFile:
 	elements = line.split('\t')
 	if elements[0] in uniqueIds and elements[7] not in uniqueUnirefIds:
@@ -104,7 +107,8 @@ for line in mappingFile:
 		uniqueUnirefIds = uniqueUnirefIds | {finalId}
 		relevantUnirefFile.write(finalId+'\n')
 	
-time.sleep(20)
+time.sleep(100)
+
 print "stage 3"	
 # 3) 
 # Each UniRef entry is denoted with the UniRef identity level followed by
