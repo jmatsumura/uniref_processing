@@ -40,7 +40,7 @@ prot_ref_map_file = gzip.open(uniprot_uniref_map, 'rb')
 sprot_file = gzip.open(sprot_dat, 'rb') 
 go_tsv_file = open(go_tsv, 'r') 
 go_prot_map_file = open(go_uniprot_map, 'r') 
-outFile1 = open('./map_file.v2.tsv', 'w')
+outFile1 = open('./map_file.v1.tsv', 'w')
 outFile2 = './map_file.v2.tsv'
 outFile3 = './map_file.v3.tsv'
 outFileFinal = './map_file.final.tsv'
@@ -69,6 +69,7 @@ regexForAccession = r"^AC\s+(.*);"
 regexForFooter = r"^\/\/$"
 regexForMappedAccession = r"UniRef100\_(\w+)"
 regexForSprotReferences = r"ECO:0000269\|(PubMed:\d+)"
+regexForFBgnIds = r"[A-Z]+[a-z]*(\d+)"
 regexForGOid = r":(.*)"
 
 uniqueIds = set()
@@ -95,30 +96,30 @@ for line in prot_ref_map_file:
 print 'stage2'
 # Just gather the data from the sprot file, add these values to their objects later. Note
 # that only a hash/dict is needed here as there are only two data points to store. 
-#for line in sprot_file:
-#	if(footerFound == True): # reinitialize values for next record
-#		accessionFound = False
-#		footerFound = False
-#		uniquePMIds.clear()
-#	elif(accessionFound == True):
-#		if(re.search(regexForFooter, line)):
-#			if(';' in foundAccession):
-#				multiAccessions = foundAccession.split('; ')
-#				for x in multiAccessions: # iterate over this ~2-3 len list
-#					sprotData[x] = '|'.join(uniquePMIds)
-#			else:
-#				sprotData[foundAccession] = '|'.join(uniquePMIds)
-#			footerFound = True
-#		else:
-#			if('ECO:0000269|PubMed' in line):
-#				pmid = re.search(regexForSprotReferences, line).group(1)
-#				if pmid not in uniquePMIds:
-#					uniquePMIds = uniquePMIds | {pmid}
-#	else:
-#		findAccession = re.search(regexForAccession, line)
-#		if(findAccession):
-#			foundAccession = findAccession.group(1)
-#			accessionFound = True
+for line in sprot_file:
+	if(footerFound == True): # reinitialize values for next record
+		accessionFound = False
+		footerFound = False
+		uniquePMIds.clear()
+	elif(accessionFound == True):
+		if(re.search(regexForFooter, line)):
+			if(';' in foundAccession):
+				multiAccessions = foundAccession.split('; ')
+				for x in multiAccessions: # iterate over this ~2-3 len list
+					sprotData[x] = '|'.join(uniquePMIds)
+			else:
+				sprotData[foundAccession] = '|'.join(uniquePMIds)
+			footerFound = True
+		else:
+			if('ECO:0000269|PubMed' in line):
+				pmid = re.search(regexForSprotReferences, line).group(1)
+				if pmid not in uniquePMIds:
+					uniquePMIds = uniquePMIds | {pmid}
+	else:
+		findAccession = re.search(regexForAccession, line)
+		if(findAccession):
+			foundAccession = findAccession.group(1)
+			accessionFound = True
 
 print 'stage3'
 # Want to start with this since it'd be a waste of time to find the evidence
@@ -144,14 +145,14 @@ for line in go_tsv_file:
 print 'final stage'
 # Now all the data has been gathered, build the final map file.
 for x in entry2List:
-	#outFile.write('\t'.join([entry1List[x].prot_acc, entry1List[x].ref_acc, entry1List[x].go_terms]))
 	outFile1.write('\t'.join([x.go_noted_acc, x.evidence_type, x.reference_id, x.go_term]))
 
 outFile1.close() # switch to reading it
 
 # These next chunks are inefficient, but I only need to run this code once to get the output and
 # the inconsistent formatting of the data pulled made it too much a hassle to reformat only to 
-# make this step more efficient
+# make this step more efficient. Broken up in such a way via intermediary files used to avoid 
+# hitting >n^2 complexity. 
 
 # First, add in the UniProt accs related to the noted GO ID
 with open('./map_file.v1.tsv', 'r') as input_file, open(outFile2, 'w') as output_file:
@@ -161,7 +162,10 @@ with open('./map_file.v1.tsv', 'r') as input_file, open(outFile2, 'w') as output
 		line = line.replace('\n','')
 		elements = line.split('\t')
 		if(':' in elements[0]):
-			elements[0] = re.search(regexForGOid, elements[0]).group(1)	
+			if('FB:' in elements[0]):
+				elements[0] = 'FBGN' + re.search(regexForFBgnIds, elements[0]).group(1)	
+			else:
+				elements[0] = re.search(regexForGOid, elements[0]).group(1)	
 		for k,v in goData.iteritems():
 			if(k == elements[0]):
 				relevant = True
@@ -184,13 +188,13 @@ with open(outFile2, 'r') as input_file, open(outFile3, 'w') as output_file:
 		elements = line.split('\t')
 		if(elements[4]==''):
 			next
-		elif(ref_to_prot == ''): # just need to perform this block first
+		elif(ref_to_prot == ''): # need to perform this block first
 			for x in entry1List:
 				# do a check for those with multiple accs and those with only one
 				if(',' in elements[4]):
 					if x.prot_acc in elements[4]:
 						relevant = True
-						if(ref_to_prot != ''):
+						if(ref_to_prot != ''): # append commas
 							ref_to_prot += ','
 							prot_go_dat += ','
 						ref_to_prot += x.ref_acc
@@ -205,3 +209,34 @@ with open(outFile2, 'r') as input_file, open(outFile3, 'w') as output_file:
 			output_file.write(line + '\t' + ref_to_prot + '\t' + prot_go_dat + '\n')
 		else:
 			output_file.write(line + '\t' + '\t' + '\n') # keep the tabs consistent
+
+# Finally, append the SwissProt data and all the references associated with each UniProt acc
+with open(outFile3, 'r') as input_file, open(outFileFinal, 'w') as output_file:
+	for line in input_file:
+		line = line.replace('\n','')
+        elements = line.split('\t')
+		uniprot_refs = '' # PM IDs linked to the accs
+		uniref_refs = ''
+		if(elements[4]=='' and elements[5]==''): # no UniRef/UniProt
+			next
+		# Should assume that if there's a UniRef, there's a UniProt
+		elif(not elements[4]=='' and not elements[5]==''): 
+			if(',' in elements[4]):
+				uniprots = elements[4].split(',')
+				for x in uniprots:
+					if(uniprot_refs == ''):
+						uniprot_refs += sprotData[x]
+					else:
+						uniprot_refs += ';'+sprotData[x]
+			else:
+				uniprot_refs += sprotData[elements[4]]
+			if(',' in elements[5]):
+				unirefs = elements[5].split(',') # possible to have multiple here
+				for x in unirefs:
+					if(uniref_refs == ''):
+						uniref_refs += sprotData[x]
+					else:
+						uniref_refs += ';'+sprotData[x]
+			else:
+				uniref_refs = sprotData[elements[5]]
+		output_file.write(line + '\t' + uniprot_refs + '\t' + uniref_refs + '\n')	
