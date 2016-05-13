@@ -26,6 +26,28 @@
 # HOWTO:  testing 
 # ./build_map_for_refs.py /path_to_uniprot_uniref_map /swissprot.dat /trembl.dat /go_refs.tsv /go_to_uniprot_map
 #
+# EXAMPLE TAB-DELIMITED OUTPUT FILE:
+# -----------------------------------------------------------------------------------------------------------------------------------------------
+# | DB:ACC     | GO EV CODE | PM ID  (GO)   | GO term (GO) | UniProt acc | UniRef acc | Go term (UniProt) | PM ID (UniProt) | PM ID (UniRef100) |
+# -----------------------------------------------------------------------------------------------------------------------------------------------
+# | SGD:S000911| IGI        | PMID:21315072 | GO:0005634   | Q7Z8M2      | C8VAU1     | GO:0043940        |  PMID:20870878  | PMID: 2091923912  |
+# -----------------------------------------------------------------------------------------------------------------------------------------------
+#
+# This file is a map for tying any UniRef match to whatever evidence is tied to any members of the cluster
+# whether this evidence is derived from GO (columns 1-4) or UniProt (7-9) databases. Description of each column:
+# 1. DB:ACC - This is an accession particular to a database. This could be NCBI, UniProt, FlyBase, etc. GO stores 
+# all of its evidence linked to these non-uniform IDs so they were mapped to their respective UniProt acc when possible.
+# 2. GO EV CODE - One  of the six experimental evidence codes: EXP / IDA / IPI / IMP / IGI / IEP
+# 3. PM ID (GO) - PubMed ID for this entry noted by the GO database
+# 4. GO term (GO) - GO term noted by the GO database
+# 5. UniProt acc - This was obtained by mapping column 1 to UniProt IDs or, if column 1 is absent, it was pulled
+# directly from SwissProt
+# 6. UniRef acc - Maps column 5 to its UniRef cluster representative (***this is dynamic with each release***) 
+# 7. GO term (UniProt) - GO terms found via the UniProt-UniRef map file from their site
+# 8. PM ID (UniProt) - Evidence tied to the manually curated entries indicated by ECO:0000269 in SwissProt
+# 9. PM ID (UniRef) - Same technique as 8. This is also included to give the user a choice for whether they want
+# to link references that are derived from the cluster members or the cluster representative of the UniRef100 hit. 
+#
 # Author: James Matsumura
 
 import sys, os, re, gzip
@@ -68,7 +90,7 @@ relevantUnirefEntry = False
 regexForAccession = r"^AC\s+(.*);"
 regexForFooter = r"^\/\/$"
 regexForMappedAccession = r"UniRef100\_(\w+)"
-regexForSprotReferences = r"ECO:0000269\|(PubMed:\d+)"
+regexForSprotReferences = r"ECO:0000269\|PubMed:(\d+)"
 regexForFBgnIds = r"[A-Z]+[a-z]*(\d+)"
 regexForGOid = r":(.*)"
 
@@ -234,9 +256,9 @@ with open(outFile3, 'r') as input_file, open(outFileFinal, 'w') as output_file:
 				unirefs = elements[5].split(',') # possible to have multiple here
 				for x in unirefs:
 					if(uniref_refs == ''):
-						uniref_refs += sprotData[x]
+						uniref_refs += 'PMID:'+sprotData[x]
 					else:
-						uniref_refs += ';'+sprotData[x]
+						uniref_refs += ';PMID:'+sprotData[x]
 			else:
 				uniref_refs = sprotData[elements[5]]
 		output_file.write(line + '\t' + uniprot_refs + '\t' + uniref_refs + '\n')	
