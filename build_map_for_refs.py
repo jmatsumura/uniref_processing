@@ -94,11 +94,9 @@ regexForSprotReferences = r"ECO:0000269\|PubMed:(\d+)"
 regexForFBgnIds = r"[A-Z]+[a-z]*(\d+)"
 regexForGOid = r":(.*)"
 
-uniqueIds = set()
+uniqueSprotIds = set()
 uniquePMIds = set()
 uniqueUnirefIds = set()
-uniqueGOmapIds = set()
-uniqueGOaccs = set()
 entry1List = []
 entry2List = []
 sprotData = {}
@@ -109,7 +107,7 @@ print 'stage1'
 for line in prot_ref_map_file:
 	mappings = line.split('\t')
 	# appears that not all entries have an UniRef100 ID
-	if('UniRef100' in mappings[7]):
+	if 'UniRef100' in mappings[7]:
 		uniref_acc = re.search(regexForMappedAccession, mappings[7]).group(1)
 	else:
 		uniref_acc = None
@@ -119,13 +117,13 @@ print 'stage2'
 # Just gather the data from the sprot file, add these values to their objects later. Note
 # that only a hash/dict is needed here as there are only two data points to store. 
 for line in sprot_file:
-	if(footerFound == True): # reinitialize values for next record
+	if footerFound == True: # reinitialize values for next record
 		accessionFound = False
 		footerFound = False
 		uniquePMIds.clear()
-	elif(accessionFound == True):
-		if(re.search(regexForFooter, line)):
-			if(';' in foundAccession):
+	elif accessionFound == True:
+		if re.search(regexForFooter, line):
+			if ';' in foundAccession:
 				multiAccessions = foundAccession.split('; ')
 				for x in multiAccessions: # iterate over this ~2-3 len list
 					sprotData[x] = '|'.join(uniquePMIds)
@@ -133,13 +131,13 @@ for line in sprot_file:
 				sprotData[foundAccession] = '|'.join(uniquePMIds)
 			footerFound = True
 		else:
-			if('ECO:0000269|PubMed' in line):
+			if 'ECO:0000269|PubMed' in line:
 				pmid = re.search(regexForSprotReferences, line).group(1)
 				if pmid not in uniquePMIds:
 					uniquePMIds = uniquePMIds | {pmid}
 	else:
 		findAccession = re.search(regexForAccession, line)
-		if(findAccession):
+		if findAccession:
 			foundAccession = findAccession.group(1)
 			accessionFound = True
 
@@ -158,13 +156,13 @@ print 'stage4'
 for line in go_tsv_file:
 	elements = line.split('\t')
 
-	if(elements[1] == ''):
-		next
+	if elements[1] == '':
+		continue
 	else:
 		ref_id = ':'.join([elements[2], elements[3]])
-		entry2List.append(Entry2(go_noted_acc=elements[1],evidence_type=elements[0],reference_id=ref_id,go_term=elements[4]))
+		entry2List.append(Entry2(go_noted_acc=elements[1],evidence_type=elements[0],reference_id=ref_id,go_term=elements[4].strip(' ')))
 
-print 'final stage'
+print 'stage5'
 # Now all the data has been gathered, build the final map file.
 for x in entry2List:
 	outFile1.write('\t'.join([x.go_noted_acc, x.evidence_type, x.reference_id, x.go_term]))
@@ -176,6 +174,7 @@ outFile1.close() # switch to reading it
 # make this step more efficient. Broken up in such a way via intermediary files used to avoid 
 # hitting >n^2 complexity. 
 
+print 'stage6'
 # First, add in the UniProt accs related to the noted GO ID
 with open('./map_file.v1.tsv', 'r') as input_file, open(outFile2, 'w') as output_file:
 	relevant = False
@@ -183,24 +182,28 @@ with open('./map_file.v1.tsv', 'r') as input_file, open(outFile2, 'w') as output
 	for line in input_file:
 		line = line.replace('\n','')
 		elements = line.split('\t')
-		if(':' in elements[0]):
-			if('FB:' in elements[0]):
+		if ':' in elements[0]:
+			if 'FB:' in elements[0]:
 				elements[0] = 'FBGN' + re.search(regexForFBgnIds, elements[0]).group(1)	
 			else:
 				elements[0] = re.search(regexForGOid, elements[0]).group(1)	
 		for k,v in goData.iteritems():
-			if(k == elements[0]):
+			if k == elements[0]:
 				relevant = True
 				go_to_uniprot = ','.join(v)
 				break
 			else:
 				relevant = False
-		if(relevant):
+		if relevant:
 			output_file.write(line + '\t' + go_to_uniprot.replace('\n','') + '\n')
 		else:
 			output_file.write(line + '\t' + '\n') # keep the tabs consistent
 
-# Now that UniProt accs are present, map to UniRef accs
+print 'stage7'
+# Now that UniProt accs are present, map to UniRef accs. It is important to 
+# remember the size of the objects for this loop. Only want to iterate over
+# the largest object (entry1List) if we absolutely have to and always be sure
+# to break at the point of finding the relevant info. 
 with open(outFile2, 'r') as input_file, open(outFile3, 'w') as output_file:
 	for line in input_file:
 		relevant = False
@@ -208,57 +211,89 @@ with open(outFile2, 'r') as input_file, open(outFile3, 'w') as output_file:
 		prot_go_dat = ''
 		line = line.replace('\n','')
 		elements = line.split('\t')
-		if(elements[4]==''):
-			next
-		elif(ref_to_prot == ''): # need to perform this block first
-			for x in entry1List:
-				# do a check for those with multiple accs and those with only one
-				if(',' in elements[4]):
-					if x.prot_acc in elements[4]:
-						relevant = True
-						if(ref_to_prot != ''): # append commas
+		if elements[4]=='':
+			# Can uncomment out if ALL go data is needed, but since these don't
+			# map to a UniProt acc I don't see the point of including currently
+			# as we can't map these from a UniRef100 match.
+			#output_file.write(line + '\t' + '\t' + '\n') # keep the tabs consistent
+			continue
+		elif ref_to_prot == '': # need to perform this block first
+			# Do a check for those with multiple accs and those with only one.
+			# In order to have proper mapping, need to iterate over these
+			# individually
+			if ',' in elements[4]:
+				individualAccs = elements[4].split(',')
+				for j in individualAccs:
+					for x in entry1List:
+						if x.prot_acc == j:
+							relevant = True
+							if ref_to_prot != '': # append commas
+								ref_to_prot += ','
+								prot_go_dat += ','
+							ref_to_prot += x.ref_acc
+							prot_go_dat += x.go_terms
+							break
+					if not relevant:
+						if ref_to_prot != '': # append commas
 							ref_to_prot += ','
 							prot_go_dat += ','
-						ref_to_prot += x.ref_acc
-						prot_go_dat += x.go_term
-				else:
+						ref_to_prot += 'NONE'
+						prot_go_dat += 'NONE'
+			else:
+				for x in entry1List:
 					if x.prot_acc in elements[4]:
 						relevant = True
 						ref_to_prot += x.ref_acc
-						prot_go_dat += x.go_term
+						prot_go_dat += x.go_terms
 						break
-		elif(relevant):
+		if relevant:
 			output_file.write(line + '\t' + ref_to_prot + '\t' + prot_go_dat + '\n')
-		else:
-			output_file.write(line + '\t' + '\t' + '\n') # keep the tabs consistent
 
+print 'stage8'
 # Finally, append the SwissProt data and all the references associated with each UniProt acc
 with open(outFile3, 'r') as input_file, open(outFileFinal, 'w') as output_file:
 	for line in input_file:
 		line = line.replace('\n','')
-        elements = line.split('\t')
+		elements = line.split('\t')
 		uniprot_refs = '' # PM IDs linked to the accs
 		uniref_refs = ''
-		if(elements[4]=='' and elements[5]==''): # no UniRef/UniProt
-			next
+		if elements[4]=='' and elements[5]=='': # no UniRef/UniProt
+			continue
 		# Should assume that if there's a UniRef, there's a UniProt
-		elif(not elements[4]=='' and not elements[5]==''): 
-			if(',' in elements[4]):
+		elif not elements[4]=='' and not elements[5]=='': 
+			uniqueSprotIds = uniqueSprotIds | {elements[4]} # Track which SwissProt already present
+			if ',' in elements[4]:
 				uniprots = elements[4].split(',')
 				for x in uniprots:
-					if(uniprot_refs == ''):
+					if uniprot_refs == '':
 						uniprot_refs += sprotData[x]
 					else:
 						uniprot_refs += ';'+sprotData[x]
 			else:
 				uniprot_refs += sprotData[elements[4]]
-			if(',' in elements[5]):
+			if ',' in elements[5]:
 				unirefs = elements[5].split(',') # possible to have multiple here
 				for x in unirefs:
-					if(uniref_refs == ''):
+					if uniref_refs == '':
 						uniref_refs += 'PMID:'+sprotData[x]
 					else:
 						uniref_refs += ';PMID:'+sprotData[x]
 			else:
 				uniref_refs = sprotData[elements[5]]
 		output_file.write(line + '\t' + uniprot_refs + '\t' + uniref_refs + '\n')	
+
+print 'stage9'
+# Up til now, building on the assumption that a GO noted accession is present. However,
+# need to be able to map those entries which only were found to have evidence through
+# SwissProt. This will then exclude columns 2-4. 
+with open(outFileFinal, 'w') as output_file:
+	for key in sprotData:
+		if key not in uniqueSprotIds:
+			unirefId = ''
+			goData = ''
+			for x in entry1List:
+					if x.prot_acc == key:
+						unirefId = x.ref_acc
+						goData = x.go_terms
+						break
+			output_file.write('UniProtKB:'+key+'\t'+'\t'+'\t'+key+'\t'+unirefId+'\t'+goData+'\t'+sprotData[x]+'\t'+sprotData[unirefId]+'\n')
