@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# This script follows phase 1 and actually needs to be run twice. The first time it needs to be given
+# This script follows phase 2 and actually needs to be run twice. The first time it needs to be given
 # the number '7' as its second option and the second time it requires the number '6'. This is simply
 # pulling different data fields from the UniProt mapping file. Again, as noted in the phase 1 script,
 # this is only being done sequentially to overcome the memory limitations due to the large input files. 
@@ -10,10 +10,10 @@
 import sys, os, re, gzip
 
 uniprot_uniref_map =  str(sys.argv[1]) # important to get the same dated versions of all UniProt files 
-col =  str(sys.argv[2]) # important to get the same dated versions of all UniProt files 
+col =  int(sys.argv[2]) # important to get the same dated versions of all UniProt files 
 
 prot_ref_map_file = gzip.open(uniprot_uniref_map, 'rb') 
-outFile5 = './map_file.v5.tsv'
+outFile = './phase_3.tsv'
 
 regexForMappedAccession = r"UniRef100\_(\w+)"
 protData = {}
@@ -34,7 +34,7 @@ print 'stage2'
 # remember the size of the objects for this loop. Only want to iterate over
 # the largest object (entry1List) if we absolutely have to and always be sure
 # to break at the point of finding the relevant info. 
-with open('./map_file.v2.tsv', 'r') as input_file, open(outFile5, 'w') as output_file:
+with open('./phase_2.tsv', 'r') as input_file, open(outFile, 'w') as output_file:
 	for line in input_file:
 		relevant = False
 		ref_to_prot = ''
@@ -54,7 +54,7 @@ with open('./map_file.v2.tsv', 'r') as input_file, open(outFile5, 'w') as output
 			if ',' in elements[4]:
 				individualAccs = elements[4].split(',')
 				for j in individualAccs:
-					if j in protData.keys():
+					if j in protData:
 						uniref = protData[j]
 					else:
 						relevant = False
@@ -68,7 +68,7 @@ with open('./map_file.v2.tsv', 'r') as input_file, open(outFile5, 'w') as output
 							ref_to_prot += ','
 						ref_to_prot += 'NONE'
 			else:
-				if elements[4] in protData.keys():
+				if elements[4] in protData:
 					uniref = protData[elements[4]]
 				if uniref != '':
 					relevant = True

@@ -9,7 +9,7 @@ import sys, os, re, gzip
 sprot_dat =  str(sys.argv[1]) 
 
 sprot_file = gzip.open(sprot_dat, 'rb') 
-outFile = './phase_2.tsv'
+outFile = './final_file.tsv'
 
 footerFound = False
 accessionFound = False
@@ -60,7 +60,7 @@ for line in sprot_file:
 
 print 'stage2'
 # Finally, append the SwissProt data and all the references associated with each UniProt acc
-with open('./phase_1.tsv', 'r') as input_file, open(outFile, 'w') as output_file:
+with open('./phase_3.tsv', 'r') as input_file, open(outFile, 'w') as output_file:
 	for line in input_file:
 		line = line.replace('\n','')
 		elements = line.split('\t')
