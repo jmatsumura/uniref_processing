@@ -60,7 +60,7 @@ for line in sprot_file:
 
 print 'stage2'
 # Finally, append the SwissProt data and all the references associated with each UniProt acc
-with open('./phase_3.tsv', 'r') as input_file, open(outFile, 'w') as output_file:
+with open('./phase_3.5.tsv', 'r') as input_file, open(outFile, 'w') as output_file:
 	for line in input_file:
 		line = line.replace('\n','')
 		elements = line.split('\t')
@@ -74,18 +74,33 @@ with open('./phase_3.tsv', 'r') as input_file, open(outFile, 'w') as output_file
 			if ',' in elements[4]:
 				uniprots = elements[4].split(',')
 				for x in uniprots:
-					if uniprot_refs == '':
-						uniprot_refs += sprotData[x]
+					if x in sprotData:
+						if uniprot_refs == '':
+							uniprot_refs += 'PMID:'+sprotData[x]
+						else:
+							uniprot_refs += ';PMID:'+sprotData[x]
 					else:
-						uniprot_refs += ';'+sprotData[x]
+						if uniprot_refs == '':
+							uniprot_refs += 'NONE'
+						else:
+							uniprot_refs += ';NONE'
 			else:
-				uniprot_refs += sprotData[elements[4]]
+				if elements[4] in sprotData:
+					uniprot_refs += 'PMID:'+sprotData[elements[4]]
 			if ',' in elements[5]:
 				unirefs = elements[5].split(',') # possible to have multiple here
 				for x in unirefs:
-					if uniref_refs == '':
-						uniref_refs += 'PMID:'+sprotData[x]
+					if x in sprotData:
+						if uniref_refs == '':
+							uniref_refs += 'PMID:'+sprotData[x]
+						else:
+							uniref_refs += ';PMID:'+sprotData[x]
 					else:
-						uniref_refs += ';PMID:'+sprotData[x]
+						if uniref_refs == '':
+							uniref_refs += 'NONE'
+						else:
+							uniref_refs += ';NONE'
 			else:
-				uniref_refs = sprotData[elements[5]]
+				if elements[5] in sprotData:
+					uniref_refs = 'PMID:'+sprotData[elements[5]]
+		output_file.write(line+'\t'+uniprot_refs+'\t'+uniref_refs+'\n')

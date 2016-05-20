@@ -19,7 +19,7 @@ uniqueSprotIds = set()
 print 'stage1'
 for line in prot_ref_map_file:
 	mappings = line.split('\t')
-	uniqueMapIds = uniqueMapIds | {mappings[0]}
+	uniqueMapIds.add(mappings[0])
 
 print 'stage2'
 # Append the SwissProt data that wasn't detected by GO
@@ -27,10 +27,10 @@ with open('./phase_1.tsv', 'r') as input_file, open(outFile, 'w') as output_file
 	for line in input_file:
 		line = line.replace('\n','')
 		elements = line.split('\t')
-		if elements[4]=='' and elements[5]=='': # no UniRef/UniProt
+		if elements[4]=='': # no UniRef/UniProt
 			continue
 		# Should assume that if there's a UniRef, there's a UniProt
-		elif not elements[4]=='': 
+		else: 
 			if ',' in elements[4]:
 				accs = elements[4].split(',')
 				for x in accs:
@@ -46,4 +46,4 @@ print 'stage3'
 with open(outFile, 'a') as output_file:
 	for x in uniqueMapIds:
 		if x not in uniqueSprotIds:
-			output_file.write('UniProtKB:'+protAcc+'\t'+'\t'+'\t'+'\t'+protAcc)
+			output_file.write('UniProtKB:'+x+'\t'+'\t'+'\t'+'\t'+x+'\n')
