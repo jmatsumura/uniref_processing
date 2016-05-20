@@ -20,7 +20,6 @@ regexForFooter = r"^\/\/$"
 regexForMappedAccession = r"UniRef100\_(\w+)"
 regexForSprotReferences = r"ECO:0000269\|PubMed:(\d+)"
 
-uniqueSprotIds = set()
 uniquePMIds = set()
 uniqueUnirefIds = set()
 sprotData = {}
@@ -38,15 +37,16 @@ for line in sprot_file:
 			if ';' in foundAccession:
 				multiAccessions = foundAccession.split('; ')
 				for x in multiAccessions: # iterate over this ~2-3 len list
-					sprotData[x] = '|'.join(uniquePMIds)
+					if not len(uniquePMIds) == 0:
+						sprotData[x] = '|'.join(uniquePMIds)
 			else:
-				sprotData[foundAccession] = '|'.join(uniquePMIds)
+				if not len(uniquePMIds) == 0:
+					sprotData[foundAccession] = '|'.join(uniquePMIds)
 			footerFound = True
 		else:
 			if 'ECO:0000269|PubMed' in line:
 				pmid = re.search(regexForSprotReferences, line).group(1)
-				if pmid not in uniquePMIds:
-					uniquePMIds = uniquePMIds | {pmid}
+				uniquePMIds = uniquePMIds | {pmid}
 	else:
 		findAccession = re.search(regexForAccession, line)
 		if findAccession:
@@ -70,7 +70,6 @@ with open('./phase_3.5.tsv', 'r') as input_file, open(outFile, 'w') as output_fi
 			continue
 		# Should assume that if there's a UniRef, there's a UniProt
 		elif not elements[4]=='' and not elements[5]=='': 
-			uniqueSprotIds = uniqueSprotIds | {elements[4]} # Track which SwissProt already present
 			if ',' in elements[4]:
 				uniprots = elements[4].split(',')
 				for x in uniprots:
@@ -80,9 +79,7 @@ with open('./phase_3.5.tsv', 'r') as input_file, open(outFile, 'w') as output_fi
 						else:
 							uniprot_refs += ';PMID:'+sprotData[x]
 					else:
-						if uniprot_refs == '':
-							uniprot_refs += 'NONE'
-						else:
+						if uniprot_refs != '':
 							uniprot_refs += ';NONE'
 			else:
 				if elements[4] in sprotData:
@@ -96,11 +93,9 @@ with open('./phase_3.5.tsv', 'r') as input_file, open(outFile, 'w') as output_fi
 						else:
 							uniref_refs += ';PMID:'+sprotData[x]
 					else:
-						if uniref_refs == '':
-							uniref_refs += 'NONE'
-						else:
+						if uniref_refs != '':
 							uniref_refs += ';NONE'
 			else:
 				if elements[5] in sprotData:
-					uniref_refs = 'PMID:'+sprotData[elements[5]]
+					uniref_refs += 'PMID:'+sprotData[elements[5]]
 		output_file.write(line+'\t'+uniprot_refs+'\t'+uniref_refs+'\n')
