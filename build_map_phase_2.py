@@ -6,20 +6,20 @@
 
 import sys, os, re, gzip
 
-uniprot_uniref_map =  str(sys.argv[1])
-sprot_dat =  str(sys.argv[2]) 
+#uniprot_uniref_map =  str(sys.argv[1])
+sprot_dat =  str(sys.argv[1]) 
 
-prot_ref_map_file = gzip.open(uniprot_uniref_map, 'rb')
-sprot_file = gzip.open(sprot_dat, 'rb') 
+#prot_ref_map_file = gzip.open(uniprot_uniref_map, 'rb')
+sprot_file = open(sprot_dat) 
 outFile = './phase_2.tsv'
 
-uniqueMapIds = set()
+uniqueSprotWithEv = set()
 uniqueSprotIds = set()
 
 print 'stage1'
-for line in prot_ref_map_file:
-	mappings = line.split('\t')
-	uniqueMapIds.add(mappings[0])
+for line in sprot_file:
+	sprot_with_ev = line.replace('\n','') #rstrip not working?
+	uniqueSprotWithEv.add(sprot_with_ev)
 
 print 'stage2'
 # Append the SwissProt data that wasn't detected by GO
@@ -44,6 +44,6 @@ print 'stage3'
 # need to be able to map those entries which only were found to have evidence through
 # SwissProt. This will then exclude columns 2-4. 
 with open(outFile, 'a') as output_file:
-	for x in uniqueMapIds:
+	for x in uniqueSprotWithEv:
 		if x not in uniqueSprotIds:
 			output_file.write('UniProtKB:'+x+'\t'+'\t'+'\t'+'\t'+x+'\n')
