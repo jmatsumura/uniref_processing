@@ -144,9 +144,9 @@ with open('./map_file.v1.tsv', 'r') as input_file, open(outFile2, 'w') as output
 		elements = line.split('\t')
 		if ':' in elements[0]:
 			if 'FB:' in elements[0]:
-				elements[0] = 'FBGN' + re.search(regexForFBgnIds, elements[0]).group(1)	
+				elements[0] = 'FBGN' + re.match(regexForFBgnIds, elements[0]).group(1)	
 			else:
-				elements[0] = re.search(regexForGOid, elements[0]).group(1)	
+				elements[0] = re.match(regexForGOid, elements[0]).group(1)	
 		for k,v in goData.iteritems():
 			if k == elements[0]:
 				relevant = True
