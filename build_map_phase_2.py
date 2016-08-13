@@ -4,7 +4,9 @@
 # 
 # Only input required is a file with UniProt IDs that have been tied to
 # whatever level of evidence desired. This can be generated through
-# bash from a users custom specification.
+# bash from a users custom specification. Using the script bundled with
+# this one, build_custom_uniref100.py, is one precursor to obtaining
+# such a file where only those with evidence noted by Sprot are gathered.
 #
 # Author: James Matsumura
 
