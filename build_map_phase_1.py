@@ -15,16 +15,16 @@
 # UniProt accessions with evidence will only be derived from SwissProt 
 # and denoted by the evidence code ECO:0000269.
 # 
-# This script will have multiple stages in order to build a complete map file.
-# It requires a number of input files, namely:
+# This set of scripts script will have multiple stages in order to build a 
+# complete map file. These requires a number of input files, namely:
 # 1) UniProt to UniRef map
 # 2A) SwissProt.dat complete datasets 
 # 2B) Trembl.dat complete dataset 
 # 3) TSV for GO annotations with evidence code, accession, and ref ID
 # 4) Map file for relevant GO accessions to UniProt accessions
 #
-# HOWTO:  testing 
-# ./build_map_for_refs.py /path_to_uniprot_uniref_map /swissprot.dat /trembl.dat /go_refs.tsv /go_to_uniprot_map
+# HOWTO:  
+# ./build_map_phase_1.py /path_to_uniprot_uniref_map /path_to_go_uniprot_map /path_to_go_data_tsv
 #
 # EXAMPLE TAB-DELIMITED OUTPUT FILE:
 # -----------------------------------------------------------------------------------------------------------------------------------------------

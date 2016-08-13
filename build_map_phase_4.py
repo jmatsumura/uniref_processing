@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Intermediate phase to add/append the SwissProt annotations.
+# Final script once again just requires the same input from phase 3/3.5.
 #
 # Author: James Matsumura
 

@@ -1,6 +1,10 @@
 #!/usr/bin/python
 #
 # Intermediate phase to add/append the SwissProt annotations.
+# 
+# Only input required is a file with UniProt IDs that have been tied to
+# whatever level of evidence desired. This can be generated through
+# bash from a users custom specification.
 #
 # Author: James Matsumura
 

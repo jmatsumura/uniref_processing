@@ -4,6 +4,8 @@
 # rather quick as I've abandoned the older list implementation housing a lot of the data for 
 # broken up chunks of data into dicts/hashes. 
 #
+# Requires the UniProt provided mapping file as the only input.
+#
 # Author: James Matsumura
 
 import sys, os, re, gzip
